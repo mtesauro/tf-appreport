@@ -14,6 +14,8 @@ import (
 
 // JjQw4ej7mYoLIhkB2HAdQIPUqrcgqiDSguBYOSVwYwQo
 // https://192.168.56.102/threadfix/rest
+// Yeah, that's an API key for TF running on a VM on my laptop
+// Feel free to get exercised about this.
 
 // Report data struct
 type AppSecRpt struct {
@@ -46,6 +48,48 @@ type Finding struct {
 	AttString string
 	AttReq    string
 	AttResp   string
+}
+
+// Setup necessary helper, struct and fuctions to sort by severity
+
+// Helper function to convert string to int for severity
+func sevValue(s string) int {
+
+	switch s {
+	case "Information":
+		return 1
+	case "Low":
+		return 2
+	case "Medium":
+		return 3
+	case "High":
+		return 4
+	case "Critical":
+		return 5
+	default:
+		return 0
+	}
+}
+
+// Type and functions to meet the sort interface
+type BySeverity map[int]Finding
+
+func (s BySeverity) Len() int {
+	return len(s)
+}
+func (s BySeverity) Swap(i, j int) {
+	t := make(map[int]Finding)
+	t[0] = Finding{s[j].Id, s[j].Title, s[j].Path, s[j].AttString, s[j].AttReq,
+		s[j].AttResp, s[j].AppId, s[j].ScanId, s[j].Severity, s[j].SortBy}
+	s[j] = Finding{s[i].Id, s[i].Title, s[i].Path, s[i].AttString, s[i].AttReq,
+		s[i].AttResp, s[i].AppId, s[i].ScanId, s[i].Severity, s[i].SortBy}
+	s[i] = Finding{t[0].Id, t[0].Title, t[0].Path, t[0].AttString, t[0].AttReq,
+		t[0].AttResp, t[0].AppId, t[0].ScanId, t[0].Severity, t[0].SortBy}
+}
+func (s BySeverity) Less(i, j int) bool {
+	a := sevValue(s[i].Severity)
+	b := sevValue(s[j].Severity)
+	return a > b
 }
 
 func main() {
