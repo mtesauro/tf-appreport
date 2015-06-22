@@ -55,6 +55,7 @@ type Finding struct {
 // Helper function to convert string to int for severity
 func sevValue(s string) int {
 
+	// Consider tolower'ing s
 	switch s {
 	case "Information":
 		return 1
@@ -78,29 +79,42 @@ func (s BySeverity) Len() int {
 	return len(s)
 }
 func (s BySeverity) Swap(i, j int) {
-	t := make(map[int]Finding)
-	t[0] = Finding{s[j].Id, s[j].Title, s[j].Path, s[j].AttString, s[j].AttReq,
-		s[j].AttResp, s[j].AppId, s[j].ScanId, s[j].Severity, s[j].SortBy}
-	s[j] = Finding{s[i].Id, s[i].Title, s[i].Path, s[i].AttString, s[i].AttReq,
-		s[i].AttResp, s[i].AppId, s[i].ScanId, s[i].Severity, s[i].SortBy}
-	s[i] = Finding{t[0].Id, t[0].Title, t[0].Path, t[0].AttString, t[0].AttReq,
-		t[0].AttResp, t[0].AppId, t[0].ScanId, t[0].Severity, t[0].SortBy}
+	//t := make(map[int]Finding)
+	// need to correct order of these to match Finding struct
+	//t[0] = Finding{s[j].Id, s[j].Title, s[j].Path, s[j].AttString, s[j].AttReq,
+	//	s[j].AttResp, s[j].AppId, s[j].ScanId, s[j].Severity, s[j].SortBy}
+	//s[j] = Finding{s[i].Id, s[i].Title, s[i].Path, s[i].AttString, s[i].AttReq,
+	//	s[i].AttResp, s[i].AppId, s[i].ScanId, s[i].Severity, s[i].SortBy}
+	//s[i] = Finding{t[0].Id, t[0].Title, t[0].Path, t[0].AttString, t[0].AttReq,
+	//	t[0].AttResp, t[0].AppId, t[0].ScanId, t[0].Severity, t[0].SortBy}
 }
 func (s BySeverity) Less(i, j int) bool {
-	a := sevValue(s[i].Severity)
-	b := sevValue(s[j].Severity)
+	//a := sevValue(s[i].Severity)
+	a := sevValue("High")
+	b := sevValue("Medium")
+	//b := sevValue(s[j].Severity)
 	return a > b
+}
+
+func printHelp() {
+	fmt.Println()
+	fmt.Println("tf-appreport")
+	fmt.Println()
+	fmt.Println("  Creates a draft report from ThreadFix based on the AppId provided")
+	fmt.Println()
 }
 
 func main() {
 	// Setup a command-line flag to get the scan file to upload and parse for it
 	scanPtr := flag.String("file", "a-template-file.xml", "the scan file to upload")
+	appArg := flag.Int("AppId", 0, "the AppId from ThreadFix to report on")
+	//scanPtr := flag.String("file", "a-template-file.xml", "the scan file to upload")
 	// Add a --help option too
 	flag.Parse()
 
 	// check if -file was used and either set that or use the built in default
 	// default will be built into the binary
-	//fmt.Printf("The file to upload is %+v \n", *scanPtr)
+	fmt.Printf("appArg is %+v \n", appArg)
 
 	// Setup the template to create the report from
 	t := template.New("app-rpt")
