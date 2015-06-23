@@ -19,35 +19,34 @@ import (
 
 // Report data struct
 type AppSecRpt struct {
-	Product     string
-	Environment string
-	YYMM        string
-	Month       string
-	Day         string
-	YYYY        string
-	NumCrit     int
-	NumHigh     int
-	NumMed      int
-	NumLow      int
-	NumInfo     int
-	IssId       int
-	IssueTitle  string
-	TotFind     int
-	//AppId       int
-	Finds []*Finding
+	Product     string // TF - Lookup App by ID - object/name
+	Environment string // Stored in BOH - no API yet
+	YYMM        string // based on date report is run
+	Month       string // based on date report is run
+	Day         string // based on date report is run
+	YYYY        string // based on date report is run
+	NumCrit     int    // TF - Lookup App by ID - object/criticalVulnCount
+	NumHigh     int    // TF - Lookup App by ID - object/highVulnCount
+	NumMed      int    // TF - Lookup App by ID - object/mediumVulnCount
+	NumLow      int    // TF - Lookup App by ID - object/lowVulnCount
+	NumInfo     int    // TF - Lookup App by ID - object/infoVulnCount
+	TotFind     int    // Calculated based on Num[Severity] items above
+	AppId       int    // Provided as a command-line arg initially
+	Finds       []*Finding
 	//Findings []Finding
 }
 
 type Finding struct {
-	Id        int
-	Title     string
-	Desc      string
-	AppId     int
-	ScanId    int
-	Path      string
-	AttString string
-	AttReq    string
-	AttResp   string
+	Id     int    // TF - VulnSearch - object/id
+	Title  string // TF - VulnSearch - object/genericVulnerability/name
+	Desc   string // TF - VulnSearch - object/findings/longDescription
+	AppId  int    // TF - VulnSearch - object/app/id
+	ScanId int    // Unknown - maybe in 2.2.8 API - need to check
+	// Look and see if there's a better way to ID each finding
+	Path      string // TF - VulnSearch - object/findings/surfaceLocation/path
+	AttString string // TF - VulnSearch - object/findings/attackString
+	AttReq    string // TF - VulnSearch - object/findings/attackRequest
+	AttResp   string // TF - VulnSearch - object/findings/attackResponse
 }
 
 // Setup necessary helper, struct and fuctions to sort by severity
@@ -186,9 +185,8 @@ func main() {
 		13,
 		21,
 		34,
-		1,
-		"Example Vulnerabilty title",
-		2,
+		81,
+		3,
 		[]*Finding{&find1, &find2},
 		//[]Finding{find1, find2},
 	}
@@ -220,6 +218,9 @@ func main() {
 	// TODO - Handle newlines for the fields which might not have values/strings
 	//        from the TF API
 }
+
+// Ideas of things to add
+// - deep links to individual findings for the TF install
 
 //    {{with .Findings}}
 //		{{range .}}
