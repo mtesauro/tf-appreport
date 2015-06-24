@@ -98,22 +98,42 @@ func (s BySeverity) Less(i, j int) bool {
 func printHelp() {
 	fmt.Println()
 	fmt.Println("tf-appreport")
+	fmt.Println("  Creates a draft report from ThreadFix for the App ID provided")
 	fmt.Println()
-	fmt.Println("  Creates a draft report from ThreadFix based on the AppId provided")
+	fmt.Println("Usage of tf-appreport:")
+	fmt.Println("  -app=[number] : the integer ID of an app in ThreadFix ** REQUIRED **\n")
+	fmt.Println("  -file=[file name] : an template to use for report generation ** OPTIONAL **")
+	fmt.Println("                      Note: A default report template is bundled into this binary\n")
+	fmt.Println("Example:")
+	fmt.Println("  tf-appreport -app 24 -file myCompany.tpl")
 	fmt.Println()
 }
 
 func main() {
 	// Setup a command-line flag to get the scan file to upload and parse for it
 	scanPtr := flag.String("file", "a-template-file.xml", "the scan file to upload")
-	appArg := flag.Int("AppId", 0, "the AppId from ThreadFix to report on")
+	appArg := flag.Int("app", 0, "the AppId from ThreadFix to report on")
+	help := flag.Bool("help", true, "Get verbose help")
 	//scanPtr := flag.String("file", "a-template-file.xml", "the scan file to upload")
 	// Add a --help option too
 	flag.Parse()
 
+	// Check if help is
+	if *help {
+		printHelp()
+		os.Exit(0)
+	}
+
+	// Check if a valid AppId was provided and bail with help if its not
+	if *appArg == 0 {
+		fmt.Println("Error: -app is a required command-line argument")
+		printHelp()
+		os.Exit(1)
+	}
+
 	// check if -file was used and either set that or use the built in default
 	// default will be built into the binary
-	fmt.Printf("appArg is %+v \n", appArg)
+	fmt.Printf("appArg is %+v \n", *appArg)
 
 	// Setup the template to create the report from
 	t := template.New("app-rpt")
