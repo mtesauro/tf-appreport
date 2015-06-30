@@ -9,10 +9,11 @@ import (
 	"fmt"
 	tf "github.com/mtesauro/tfclient"
 	"os"
+	"strings"
 	"text/template"
 )
 
-// JjQw4ej7mYoLIhkB2HAdQIPUqrcgqiDSguBYOSVwYwQo
+// 6ZR7SZ4lTU5s7WcAAYu2s2fDuimGD4WggVVTQUbGVc
 // https://192.168.56.102/threadfix/rest
 // Yeah, that's an API key for TF running on a VM on my laptop
 // Feel free to get exercised about this.
@@ -113,12 +114,10 @@ func main() {
 	// Setup a command-line flag to get the scan file to upload and parse for it
 	scanPtr := flag.String("file", "a-template-file.xml", "the scan file to upload")
 	appArg := flag.Int("app", 0, "the AppId from ThreadFix to report on")
-	help := flag.Bool("help", true, "Get verbose help")
-	//scanPtr := flag.String("file", "a-template-file.xml", "the scan file to upload")
-	// Add a --help option too
+	help := flag.Bool("help", false, "Get verbose help")
 	flag.Parse()
 
-	// Check if help is
+	// Check if help was requested
 	if *help {
 		printHelp()
 		os.Exit(0)
@@ -126,7 +125,7 @@ func main() {
 
 	// Check if a valid AppId was provided and bail with help if its not
 	if *appArg == 0 {
-		fmt.Println("Error: -app is a required command-line argument")
+		fmt.Println("\nERROR: -app is a required command-line argument")
 		printHelp()
 		os.Exit(1)
 	}
@@ -157,13 +156,48 @@ func main() {
 
 	fmt.Printf("Template is %+v\n", t)
 
-	//t, err := template.ParseFiles("templates/AppSecReport.tpl")
-	//fmt.Printf("Opened a template at %v\n", t)
+	// Create a client to talk to the API
+	tfc, err := tf.CreateClient()
+	if err != nil {
+		if strings.Contains(err.Error(), "Unable to find config file") {
+			// Create a blank config
+			if tf.CreateEmptyConfig() != nil {
+				// Error creating blank config
+				fmt.Printf("Error creating defaul config:\n\t%+v\n", err)
+				os.Exit(1)
+			} else {
+				// Let user know we created a empty config and they need to edit
+				fmt.Printf("\nError: No tfclient config file found\n")
+				fmt.Printf("Default config created at ./tfclient.config\n")
+				fmt.Printf("Please add needed values and re-run your command\n\n")
+				os.Exit(0)
+			}
+		}
 
-	//os.Exit(0)
+		fmt.Print(err)
+		os.Exit(1)
+	}
 
-	//t, err := template.ParseFiles(*scanPtr)
-	//fmt.Printf("\nError parsing the template is %+v\n\n", err)
+	// Lookup provided AppID
+	// func LookupAppId(c *http.Client, id int) (string, error) {
+	appResp, err := tf.LookupAppId(tfc, *appArg)
+	if err != nil {
+		fmt.Printf("\nERROR: Problem looking up App ID provided - %v\n", *appArg)
+		fmt.Printf("Error reported is:\n\t%+v\n\n", err)
+		os.Exit(1)
+	}
+
+	//TODO - Bug in tfclient - if you look up a non-existent app id, it doesn't
+	//       return null but instead returns:
+	//       {"message":"Application lookup failed. Check your ID.",
+	//        "success":false,"responseCode":-1,"object":null}
+
+	fmt.Printf("err from lookup id is %+v\n", err)
+	fmt.Printf("appResp is %+v\n", appResp)
+
+	// Turn JSON resp into a App Struct
+
+	os.Exit(0)
 
 	// Mock out some data
 	find1 := Finding{
@@ -221,14 +255,14 @@ func main() {
 	//fmt.Printf("Error generating the report is%v\n\n", rpt)
 	//fmt.Printf("upload JSON is %+v \n\n", upResp)
 	//fmt.Printf("Data for the report is%+v\n\n", rData)
-	err := t.Execute(rpt, d)
-	fmt.Printf("\n\nError generating the report is %+v\n\n", err)
+	exErr := t.Execute(rpt, d)
+	fmt.Printf("\n\nError generating the report is %+v\n\n", exErr)
 	rpt.Flush()
 	fmt.Println("\nReport generation complete")
 
 	// Create a client to talk to the API and set it as a global variable
 	//	tfc, err := tf.CreateClient()
-	tfc, _ := tf.CreateClient()
+	//tfc, _ := tf.CreateClient()
 	//	if err != nil {
 	//		fmt.Print(err)
 	//		os.Exit(1)
