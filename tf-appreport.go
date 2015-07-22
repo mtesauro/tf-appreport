@@ -7,10 +7,13 @@ import (
 	"bufio"
 	"flag"
 	"fmt"
-	tf "github.com/mtesauro/tfclient"
 	"os"
+	"strconv"
 	"strings"
 	"text/template"
+	"time"
+
+	tf "github.com/mtesauro/tfclient"
 )
 
 // 6ZR7SZ4lTU5s7WcAAYu2s2fDuimGD4WggVVTQUbGVc
@@ -33,7 +36,7 @@ type AppSecRpt struct {
 	NumInfo     int    // TF - Lookup App by ID - object/infoVulnCount
 	TotFind     int    // Calculated based on Num[Severity] items above
 	AppId       int    // Provided as a command-line arg initially
-	Finds       []*Finding
+	Finds       map[int]*Finding
 	//Findings []Finding
 }
 
@@ -50,7 +53,22 @@ type Finding struct {
 	AttResp   string // TF - VulnSearch - object/findings/attackResponse
 }
 
+// Set globals for the few things we cannot, yet, get from APIs
+var env = "CHANGE ME"
+
 // Setup necessary helper, struct and fuctions to sort by severity
+
+func makeYYMM(n time.Time) string {
+	// Format year and month into YYMM for reporting purposes
+	yy := strconv.Itoa(n.Year())[2:]
+
+	mm := strconv.Itoa(int(n.Month()))
+	if len(mm) == 1 {
+		mm = "0" + mm
+	}
+
+	return yy + "-" + mm
+}
 
 // Helper function to convert string to int for severity
 func sevValue(s string) int {
@@ -180,22 +198,56 @@ func main() {
 
 	// Lookup provided AppID
 	// func LookupAppId(c *http.Client, id int) (string, error) {
-	appResp, err := tf.LookupAppId(tfc, *appArg)
+	appJson, err := tf.LookupAppId(tfc, *appArg)
 	if err != nil {
 		fmt.Printf("\nERROR: Problem looking up App ID provided - %v\n", *appArg)
 		fmt.Printf("Error reported is:\n\t%+v\n\n", err)
 		os.Exit(1)
 	}
 
-	//TODO - Bug in tfclient - if you look up a non-existent app id, it doesn't
-	//       return null but instead returns:
-	//       {"message":"Application lookup failed. Check your ID.",
-	//        "success":false,"responseCode":-1,"object":null}
-
-	fmt.Printf("err from lookup id is %+v\n", err)
-	fmt.Printf("appResp is %+v\n", appResp)
-
 	// Turn JSON resp into a App Struct
+	var app tf.AppResp
+	err = tf.MakeAppStruct(&app, appJson)
+	if err != nil {
+		fmt.Printf("\nERROR: Problem parsing App JSON for ID - %v\n", *appArg)
+		fmt.Printf("Error reported is:\n\t%+v\n\n", err)
+		os.Exit(1)
+	}
+
+	// Calculate the date field needed for AppSecRpt struct
+	n := time.Now()
+	month := n.Month().String()
+	day := strconv.Itoa(n.Day())
+	year := strconv.Itoa(n.Year())
+	yymm := makeYYMM(n)
+
+	// Calculate total findings
+	findTot := app.Ap[0].NumCrit + app.Ap[0].NumHigh + app.Ap[0].NumMed +
+		app.Ap[0].NumLow + app.Ap[0].NumInfo
+
+	// Setup map to hold findings
+	finds := make(map[int]*Finding)
+
+	appData := AppSecRpt{
+		app.Ap[0].Name,
+		env,
+		yymm,
+		month,
+		day,
+		year,
+		app.Ap[0].NumCrit,
+		app.Ap[0].NumHigh,
+		app.Ap[0].NumMed,
+		app.Ap[0].NumLow,
+		app.Ap[0].NumInfo,
+		findTot,
+		*appArg,
+		finds,
+	}
+
+	//fmt.Printf("yymm %s \nmonth %s \nday %s \nyear %s \nfinds %+v \n\n", yymm, month, day, year, finds)
+	//	fmt.Printf("err from lookup id is %+v\n", err)
+	fmt.Printf("appData is %+v\n", appData)
 
 	os.Exit(0)
 
@@ -227,6 +279,10 @@ func main() {
 		AttResp: "HTTP/1.1 200 OK",
 	}
 
+	f := make(map[int]*Finding)
+	f[1] = &find1
+	f[2] = &find2
+
 	d := AppSecRpt{
 		"Example App",
 		"Staging",
@@ -241,7 +297,8 @@ func main() {
 		34,
 		81,
 		3,
-		[]*Finding{&find1, &find2},
+		f,
+		//[]*Finding{&find1, &find2},
 		//[]Finding{find1, find2},
 	}
 
@@ -271,15 +328,13 @@ func main() {
 
 	// TODO - Handle newlines for the fields which might not have values/strings
 	//        from the TF API
+	//TODO - Bug in tfclient - if you look up a non-existent app id, it doesn't
+	//       return null but instead returns:
+	//       {"message":"Application lookup failed. Check your ID.",
+	//        "success":false,"responseCode":-1,"object":null}
+	// DO this across all calls to convert JSON to a struct - should
 }
 
 // Ideas of things to add
 // - deep links to individual findings for the TF install
-
-//    {{with .Findings}}
-//		{{range .}}
-//			Finding ID: {{.Id}} <br />
-//			Title: {{.Title}}<br />
-//			Description: {{.Desc}}<br />
-//		{{end}}
-//	{{end}}
+// - deep links to Apps being reported on
