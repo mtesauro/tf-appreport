@@ -7,6 +7,7 @@ import (
 	"bufio"
 	"flag"
 	"fmt"
+	"html"
 	"os"
 	"strconv"
 	"strings"
@@ -247,60 +248,110 @@ func main() {
 
 	//fmt.Printf("yymm %s \nmonth %s \nday %s \nyear %s \nfinds %+v \n\n", yymm, month, day, year, finds)
 	//	fmt.Printf("err from lookup id is %+v\n", err)
-	fmt.Printf("appData is %+v\n", appData)
+	//fmt.Printf("appData is %+v\n", appData)
 
-	os.Exit(0)
+	// Create a struct to hold our search parameters
+	s := tf.CreateSearchStruct()
+
+	// Restrict search to only the App ID provided
+	tf.AppIdSearch(&s, *appArg)
+	// Only ask for all but infos - 5, 4, 3, 2
+	tf.SeveritySearch(&s, 5, 4, 3, 2, 1)
+	// Increase number of results up from the default of 10
+	tf.NumSearchResults(&s, 1500)
+	// Only open vulns
+	tf.ShowInSearch(&s, "open")
+	// Send the search query to TF
+	vulns, err := tf.VulnSearch(tfc, &s)
+	if err != nil {
+		fmt.Print(err)
+		os.Exit(1)
+	}
+
+	//fmt.Printf("\n\n%+v\n\n", vulns)
+
+	// Create a search struct and load it with the search with just conducted
+	var srch tf.SrchResp
+	err = tf.MakeSearchStruct(&srch, vulns)
+	if err != nil {
+		fmt.Print(err)
+		os.Exit(1)
+	}
+
+	//fmt.Printf("searchStruct is %+v\n", srch)
+
+	// Run through the results to extract the needed info
+	for k, v := range srch.Results {
+		//fmt.Printf("Current value at %d is %+v\n\n", k, v)
+		f := Finding{
+			v.Id,
+			v.CweVuln.Name,
+			v.Findings[0].LongDesc,
+			v.Apps.Id,
+			777, // Scan ID is not returned in the Vuln search so add filler value
+			v.Findings[0].Loc.Path,
+			v.Findings[0].AttString,
+			html.EscapeString(v.Findings[0].AttReq),
+			html.EscapeString(v.Findings[0].AttResp),
+		}
+		finds[k] = &f
+	}
+
+	fmt.Printf("appData is %+v\n", appData)
+	//finds = srch.Results
+
+	//	os.Exit(0)
 
 	// Mock out some data
-	find1 := Finding{
-		Id:        1,
-		Title:     "Reflective Cross-Site Scripting (XSS)",
-		Desc:      "Its a really bad thing that you totally must fix or get owned",
-		AppId:     666,
-		ScanId:    777,
-		Path:      "/app/login.do",
-		AttString: "' or '1' = '1",
-		AttReq:    "",
-		AttResp:   "",
-	}
-	find2 := Finding{
-		Id:        2,
-		Title:     "Secure Flag not set on cookie",
-		Desc:      "Cookies are valuable and must be protected.  Cookie monster says so",
-		AppId:     666,
-		ScanId:    777,
-		Path:      "/app/profile.php",
-		AttString: "<script>alert(\"Woot\")</script>",
-		AttReq: `POST /app/profile.php 
-		Host: www.example.com
-		Accepts: text/html
-		
-		phone=%3Cscript%3Ealert%28%5C%22Woot%5C%22%29%3C%2Fscript%3E`,
-		AttResp: "HTTP/1.1 200 OK",
-	}
+	//	find1 := Finding{
+	//		Id:        1,
+	//		Title:     "Reflective Cross-Site Scripting (XSS)",
+	//		Desc:      "Its a really bad thing that you totally must fix or get owned",
+	//		AppId:     666,
+	//		ScanId:    777,
+	//		Path:      "/app/login.do",
+	//		AttString: "' or '1' = '1",
+	//		AttReq:    "",
+	//		AttResp:   "",
+	//	}
+	//	find2 := Finding{
+	//		Id:        2,
+	//		Title:     "Secure Flag not set on cookie",
+	//		Desc:      "Cookies are valuable and must be protected.  Cookie monster says so",
+	//		AppId:     666,
+	//		ScanId:    777,
+	//		Path:      "/app/profile.php",
+	//		AttString: "<script>alert(\"Woot\")</script>",
+	//		AttReq: `POST /app/profile.php
+	//		Host: www.example.com
+	//		Accepts: text/html
 
-	f := make(map[int]*Finding)
-	f[1] = &find1
-	f[2] = &find2
+	//		phone=%3Cscript%3Ealert%28%5C%22Woot%5C%22%29%3C%2Fscript%3E`,
+	//		AttResp: "HTTP/1.1 200 OK",
+	//	}
 
-	d := AppSecRpt{
-		"Example App",
-		"Staging",
-		"14-12",
-		"December",
-		"15",
-		"2014",
-		5,
-		8,
-		13,
-		21,
-		34,
-		81,
-		3,
-		f,
-		//[]*Finding{&find1, &find2},
-		//[]Finding{find1, find2},
-	}
+	//	f := make(map[int]*Finding)
+	//	f[1] = &find1
+	//	f[2] = &find2
+
+	//	d := AppSecRpt{
+	//		"Example App",
+	//		"Staging",
+	//		"14-12",
+	//		"December",
+	//		"15",
+	//		"2014",
+	//		5,
+	//		8,
+	//		13,
+	//		21,
+	//		34,
+	//		81,
+	//		3,
+	//		f,
+	//		//[]*Finding{&find1, &find2},
+	//		//[]Finding{find1, find2},
+	//	}
 
 	//fmt.Printf("Data for report is \n%v\n%v\n", find1, find2)
 	rptF, _ := os.Create("templates/AppSecAssessmentReport-DRAFT.fodt")
@@ -312,7 +363,7 @@ func main() {
 	//fmt.Printf("Error generating the report is%v\n\n", rpt)
 	//fmt.Printf("upload JSON is %+v \n\n", upResp)
 	//fmt.Printf("Data for the report is%+v\n\n", rData)
-	exErr := t.Execute(rpt, d)
+	exErr := t.Execute(rpt, appData)
 	fmt.Printf("\n\nError generating the report is %+v\n\n", exErr)
 	rpt.Flush()
 	fmt.Println("\nReport generation complete")
@@ -332,7 +383,7 @@ func main() {
 	//       return null but instead returns:
 	//       {"message":"Application lookup failed. Check your ID.",
 	//        "success":false,"responseCode":-1,"object":null}
-	// DO this across all calls to convert JSON to a struct - should
+	//   ** DO this across all calls to convert JSON to a struct - should **
 }
 
 // Ideas of things to add
